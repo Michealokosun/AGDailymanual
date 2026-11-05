@@ -1,61 +1,153 @@
 # Evangel Daily Meal
 
-A responsive Next.js app for weekly daily devotionals and Sunday School lessons.
+A responsive devotional and Sunday School reading app for Assemblies of God members. It brings daily readings and Sunday School lessons together in one place, so members can read today's message or find past readings without searching through a busy WhatsApp chat.
 
-## Start the app
+## What the app does
 
-Install Node.js 20.9 or newer and npm. From the project folder, install dependencies and run the development server:
+- Highlights today's available reading on the home page and lists published readings from `content/readings/`.
+- Organizes the archive by week and provides an empty state when there are no readings for the selected week.
+- Gives every reading its own page, with the full devotional or Sunday School lesson.
+- Accepts reading submissions from an approved Telegram group and saves each as a dated Markdown file in GitHub.
+- Offers optional browser push notifications when a new reading is published.
+- Adapts to mobile and desktop screens.
+
+## Run locally
+
+Requirements: Node.js 20.9 or newer and npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` in a browser. Use `npm run build` to make a production build and `npm run start` to run it.
+Open [http://localhost:3000](http://localhost:3000). To create and run a production build:
 
-## Add or update readings
+```bash
+npm run build
+npm run start
+```
 
-Store readings in `content/readings/`, one Markdown file per date. The filename and front matter date must match, using `YYYY-MM-DD.md`. For example, `content/readings/2026-11-08.md` is that Sunday's Sunday School lesson.
+## Manage readings with Markdown
+
+Each reading lives in its own file in `content/readings/`. Use the date as the filename, in `YYYY-MM-DD.md` format, and make the `date` in the front matter match it. The app automatically includes valid dated Markdown readings in the archive.
 
 1. Copy `content/readings/TEMPLATE.md`.
-2. Rename the copy to the reading date, such as `2026-11-09.md`.
-3. Fill in its YAML front matter. Set `type` to `daily` or `sunday-school` and enter the topic, Bible reference, and any available devotional fields. Sunday School lessons can also include `unit`, `lessonNumber`, `centralTruth`, and a `learningObjectives` list.
-4. Write the message or lesson below the closing `---`. Use blank lines between paragraphs. Markdown headings and lists work for sections such as discussion questions.
-5. Commit and push the file to GitHub. With the repository connected to Vercel, a push creates a deployment; merging into the production branch (usually `main`) publishes it to the live site after the deployment succeeds.
+2. Save the copy as the reading date, for example `content/readings/2026-11-08.md`.
+3. Set `type` to `daily` or `sunday-school`, then fill in the topic, scripture reference, and other relevant fields.
+4. Add the message or lesson after the closing `---`. Markdown headings, paragraphs, and lists are supported.
+5. Check the file and publish it to the production branch in GitHub. Vercel deploys the change when the deployment succeeds.
 
-The Home page automatically reads all dated files and offers a weekly filter using the Africa/Lagos calendar. Sunday School readings are labeled. If there is no file for a date, the app shows “coming soon.” `npm run content:check` verifies filenames and required front matter. This check also runs automatically before a production build, so malformed readings fail the deployment instead of silently going live.
+Example front matter:
 
-The supplied Thursday, November 5, 2026 devotional and Sunday, November 1, 2026 Sunday School lesson are in `content/readings/2026-11-05.md` and `content/readings/2026-11-01.md`.
+```yaml
+---
+date: "2026-11-08"
+type: sunday-school
+topic: "The lesson topic"
+scripture: "John 5:1–9"
+keyVerse: "I praise you because I am fearfully and wonderfully made."
+keyVerseReference: "Psalm 139:14"
+translation: NIV
+unit: "Unit 3 — Unit title"
+lessonNumber: "Lesson 18"
+centralTruth: "The central truth of the lesson."
+learningObjectives:
+  - "First objective"
+  - "Second objective"
+---
 
-## Add readings from Telegram
+Write the complete lesson here.
+```
 
-The Telegram webhook accepts daily readings in the Evangel Daily Meal format and Sunday School lessons in the Adult Teacher format. It converts them to the existing Markdown front matter, rejects invalid dates and duplicate files, then creates the file in GitHub. A GitHub commit triggers a Vercel deployment when the repository is connected. The webhook does not overwrite an existing reading.
+Only the `date`, `type`, `topic`, and body are required by the content check. Use the remaining fields as appropriate. Sunday School lessons can include `unit`, `lessonNumber`, `centralTruth`, and `learningObjectives`. Run the validator before committing:
 
-### Telegram and GitHub setup
+```bash
+npm run content:check
+```
 
-1. Create a bot with [@BotFather](https://t.me/BotFather), send `/setcommands`, select the bot, and enter `publish - Publish a devotional or Sunday School lesson`. Add it as an administrator in a private Telegram group used for reading submissions. The bot needs to receive messages; it does not need other group administration permissions. The endpoint still accepts submissions only from the configured group and user IDs.
-2. Create a GitHub fine-grained personal access token for this repository with **Contents: Read and write** permission. The bot uses GitHub's repository contents API to create one dated Markdown file.
-3. Copy `.env.example` to `.env.local` and fill in the bot token. Add the bot to the private group, send it a message there, and run `npm run telegram:ids`. This prints the numeric chat and sender IDs without printing message text. Put the group ID in `TELEGRAM_ALLOWED_CHAT_ID` and only approved sender IDs in `TELEGRAM_ALLOWED_USER_IDS` (comma-separated if there is more than one). The script reads `.env.local` directly.
-4. Set `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, and `GITHUB_BRANCH` in `.env.local`. Use the branch connected to Vercel for production, normally `main`.
-5. Deploy the app to Vercel. In **Project → Settings → Environment Variables**, add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ALLOWED_CHAT_ID`, `TELEGRAM_ALLOWED_USER_IDS`, `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, and `GITHUB_BRANCH`. Use a random webhook secret made only from letters, numbers, `_`, and `-`. Redeploy after adding the variables.
-6. Set `APP_URL` in `.env.local` to the deployed HTTPS URL, such as `https://your-app.vercel.app`, then run `npm run telegram:webhook` once to register the Telegram webhook. Do not share or commit `.env.local` or any tokens.
+The production build also runs this check automatically. It catches invalid dates, filename/front matter mismatches, missing topics, unsupported types, and empty reading bodies.
 
-To submit a short reading, send `/publish` followed by the complete reading text in the group. For a long Sunday School lesson, attach a UTF-8 `.txt` file and put `/publish` in the caption. `/reading` remains a supported alias. Use the date line, topic, and section labels from the supplied examples. Telegram replies with whether the reading was saved; the commit then deploys through Vercel. Sending `/publish` is the publish action, so check the reading before sending. If a file for that date already exists, the bot reports the duplicate and leaves it unchanged.
+## Publish from Telegram
 
-The webhook endpoint is `POST /api/telegram/webhook`. It verifies Telegram's secret header and checks the configured group and sender IDs before processing a message. `npm run telegram:ids` must be run before registering the webhook because Telegram's `getUpdates` and webhook delivery cannot be used at the same time.
+An approved sender can post `/publish` followed by the complete reading in the configured Telegram group. For long Sunday School lessons, attach a UTF-8 `.txt` file and put `/publish` in the caption. The bot validates and converts the message to a dated Markdown file, commits it to the configured GitHub repository, and replies with the result. Existing readings are not overwritten. `/reading` is also accepted as an alias.
 
-## Push notifications for new readings
+### Set up the bot
 
-On a reader's first Home page visit, an in-app consent prompt asks whether they want new-reading alerts. The browser's system permission request appears only after they tap **Allow notifications**. The app stores each push subscription in Postgres. GitHub Actions sends the topic and reading link when a new dated Markdown file is added to the production branch, including readings published through Telegram. Expired subscriptions are removed automatically. Push is opt-in per browser/device.
+1. Create a bot with [@BotFather](https://t.me/BotFather). Use `/setcommands` to add `publish - Publish a devotional or Sunday School lesson`.
+2. Add the bot to a private submission group. Configure the group ID and approved sender IDs so only authorized members can publish.
+3. Create a GitHub fine-grained personal access token scoped to the repository with **Contents: Read and write** permission.
+4. Copy `.env.example` to `.env.local` and fill in the Telegram and GitHub values listed below.
+5. Send a message in the group, then run `npm run telegram:ids` to identify the numeric chat ID and sender ID. Set those values in `.env.local`.
+6. Deploy to Vercel and add the same required environment variables under **Project → Settings → Environment Variables**. Set `APP_URL` to the deployed HTTPS URL and redeploy.
+7. Register the webhook once from your local project:
 
-1. In Vercel, open **Storage → Marketplace** and add a Postgres provider such as Neon to this project. The integration provides a `DATABASE_URL` environment variable. The app creates its `push_subscriptions` table automatically the first time it stores a subscription.
-2. Generate a VAPID key pair with `npm run push:keys`. Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to Vercel. Set `VAPID_PUBLIC_KEY` as a **Config** value and the private key as a **Secret**. Use a real contact for the subject, such as `mailto:you@example.com`. The app sends the public key to the browser through `/api/push/config`, so it does not need the `NEXT_PUBLIC_` prefix.
-3. Set `APP_URL` to the deployed HTTPS site URL and create a strong random `PUSH_WEBHOOK_SECRET`. Add the database and push values to `.env.local` for local development. `.env.example` shows the variable names; never commit private keys or `.env.local`.
-4. In GitHub, open **Settings → Secrets and variables → Actions** and add repository secrets `PUSH_NOTIFY_URL` (the deployed app URL) and `PUSH_WEBHOOK_SECRET` (the same secret as in Vercel). The included workflow watches `main` for newly added dated Markdown files in `content/readings/`, including files created by Telegram. If your production branch is not `main`, update the workflow branch filter.
-5. Redeploy after adding the Vercel environment variables. On first visit to the Home page, readers can accept the in-app consent prompt and then the browser permission prompt. On iPhone/iPad, users need to add the site to their Home Screen before enabling push notifications.
+   ```bash
+   npm run telegram:webhook
+   ```
 
-The VAPID public key is exposed to the browser for subscription setup; keep `VAPID_PRIVATE_KEY` and `PUSH_WEBHOOK_SECRET` secret. The notification endpoint accepts requests only from GitHub Actions with that secret. If push delivery fails, check the GitHub Actions run and Vercel function logs.
+The webhook endpoint is `POST /api/telegram/webhook`. Telegram delivers new messages to the deployed app; the app checks the webhook secret, allowed group, and approved sender IDs before it saves anything. Run `telegram:ids` before registering the webhook, since Telegram does not allow `getUpdates` polling and webhook delivery at the same time.
 
-## Brand asset
+## Push notifications
 
-Replace `public/ag-logo.png` to update the logo used on the splash screen and navigation. `#FDCA40` is the primary accent, paired with navy, cream, and muted gold colors in `src/app/globals.css`.
+Readers can opt in to new-reading alerts from the prompt on the home page. Each browser/device has its own subscription. When a dated Markdown file is added to the production branch, the included GitHub Actions workflow asks the app to notify subscribers. Telegram-published readings follow the same GitHub commit and deployment path.
+
+1. Add a Postgres database through Vercel Marketplace (Neon is supported). Set `DATABASE_URL`; the app creates its subscriptions table when needed.
+2. Generate VAPID keys locally:
+
+   ```bash
+   npm run push:keys
+   ```
+
+   Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to Vercel. Keep the private key secret. The public key is served to the browser by `/api/push/config`, so it does not need a `NEXT_PUBLIC_` prefix.
+3. Set `APP_URL` to the deployed HTTPS URL and set a strong `PUSH_WEBHOOK_SECRET` in Vercel.
+4. In GitHub, open **Settings → Secrets and variables → Actions** and add `PUSH_NOTIFY_URL` (the deployed app URL) and `PUSH_WEBHOOK_SECRET` (the matching value).
+5. The workflow watches the `main` branch by default. If the production branch has another name, update `.github/workflows/notify-new-readings.yml`.
+
+On iPhone and iPad, users must add the site to their Home Screen and open it from there before enabling push notifications. Check the GitHub Actions run and Vercel function logs if delivery fails.
+
+## Environment variables
+
+See `.env.example` for the complete list. Set only the integrations you use; never commit `.env.local` or paste secrets into source files.
+
+| Variable | Used for |
+| --- | --- |
+| `APP_URL` | Public HTTPS URL for webhook registration and reading links |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot authentication |
+| `TELEGRAM_WEBHOOK_SECRET` | Verifies requests sent by Telegram |
+| `TELEGRAM_ALLOWED_CHAT_ID` | The only group permitted to submit readings |
+| `TELEGRAM_ALLOWED_USER_IDS` | Comma-separated list of approved Telegram sender IDs |
+| `GITHUB_TOKEN` | Lets the bot commit reading files |
+| `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH` | Destination repository and branch for readings |
+| `DATABASE_URL` | Postgres connection for push subscriptions |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Browser push notification configuration |
+| `PUSH_WEBHOOK_SECRET` | Protects the endpoint called by GitHub Actions |
+
+## Project structure
+
+```text
+content/readings/       Dated Markdown readings and the template
+public/                 Logo, icons, and service worker
+scripts/                Content checks and Telegram/push setup tools
+src/app/                Next.js pages, styles, and API routes
+src/components/         Shared interface components
+src/data/               Reading file loading and parsing
+src/lib/                 Date, Telegram, and push utilities
+.github/workflows/      New-reading notification workflow
+```
+
+## Useful commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local development server |
+| `npm run build` | Validate content and build for production |
+| `npm run start` | Run the production build locally |
+| `npm run lint` | Run ESLint |
+| `npm run content:check` | Validate reading filenames and required content |
+| `npm run telegram:ids` | Inspect pending Telegram updates for IDs |
+| `npm run telegram:webhook` | Register the deployed Telegram webhook |
+| `npm run push:keys` | Generate a VAPID key pair |
+
+## Branding
+
+The app uses the Assemblies of God logo at `public/ag-logo.png`. Replace that asset to update the logo on the splash screen and navigation. The primary accent color is `#FDCA40`, paired with navy and warm cream.
