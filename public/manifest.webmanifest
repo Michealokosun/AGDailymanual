@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Evangel Daily Meal",
+  "short_name": "Evangel Meal",
+  "description": "Read, reflect, and grow in faith with Evangel Daily Meal.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#17243b",
+  "theme_color": "#17243b",
+  "icons": [
+    {
+      "src": "/ag-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

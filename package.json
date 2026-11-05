@@ -10,20 +10,24 @@
     "lint": "eslint .",
     "content:check": "node scripts/validate-readings.mjs",
     "telegram:webhook": "node --env-file=.env.local scripts/register-telegram-webhook.mjs",
-    "telegram:ids": "node --env-file=.env.local scripts/inspect-telegram-updates.mjs"
+    "telegram:ids": "node --env-file=.env.local scripts/inspect-telegram-updates.mjs",
+    "push:keys": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "gray-matter": "^4.0.3",
     "next": "^15.5.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@types/node": "^22.18.6",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9.37.0",
     "eslint-config-next": "^15.5.6",
     "typescript": "^5.9.3"

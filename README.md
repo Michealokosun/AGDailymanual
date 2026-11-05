@@ -23,7 +23,7 @@ Store readings in `content/readings/`, one Markdown file per date. The filename 
 4. Write the message or lesson below the closing `---`. Use blank lines between paragraphs. Markdown headings and lists work for sections such as discussion questions.
 5. Commit and push the file to GitHub. With the repository connected to Vercel, a push creates a deployment; merging into the production branch (usually `main`) publishes it to the live site after the deployment succeeds.
 
-The Home page automatically reads the current Monday–Sunday week using the Africa/Lagos calendar and shows each matching file. Sunday is labeled Sunday School. If there is no file for a date, the app shows “coming soon.” `npm run content:check` verifies filenames and required front matter. This check also runs automatically before a production build, so malformed readings fail the deployment instead of silently going live.
+The Home page automatically reads all dated files and offers a weekly filter using the Africa/Lagos calendar. Sunday School readings are labeled. If there is no file for a date, the app shows “coming soon.” `npm run content:check` verifies filenames and required front matter. This check also runs automatically before a production build, so malformed readings fail the deployment instead of silently going live.
 
 The supplied Thursday, November 5, 2026 devotional and Sunday, November 1, 2026 Sunday School lesson are in `content/readings/2026-11-05.md` and `content/readings/2026-11-01.md`.
 
@@ -43,6 +43,18 @@ The Telegram webhook accepts daily readings in the Evangel Daily Meal format and
 To submit a short reading, send `/publish` followed by the complete reading text in the group. For a long Sunday School lesson, attach a UTF-8 `.txt` file and put `/publish` in the caption. `/reading` remains a supported alias. Use the date line, topic, and section labels from the supplied examples. Telegram replies with whether the reading was saved; the commit then deploys through Vercel. Sending `/publish` is the publish action, so check the reading before sending. If a file for that date already exists, the bot reports the duplicate and leaves it unchanged.
 
 The webhook endpoint is `POST /api/telegram/webhook`. It verifies Telegram's secret header and checks the configured group and sender IDs before processing a message. `npm run telegram:ids` must be run before registering the webhook because Telegram's `getUpdates` and webhook delivery cannot be used at the same time.
+
+## Push notifications for new readings
+
+On a reader's first Home page visit, an in-app consent prompt asks whether they want new-reading alerts. The browser's system permission request appears only after they tap **Allow notifications**. The app stores each push subscription in Postgres. GitHub Actions sends the topic and reading link when a new dated Markdown file is added to the production branch, including readings published through Telegram. Expired subscriptions are removed automatically. Push is opt-in per browser/device.
+
+1. In Vercel, open **Storage → Marketplace** and add a Postgres provider such as Neon to this project. The integration provides a `DATABASE_URL` environment variable. The app creates its `push_subscriptions` table automatically the first time it stores a subscription.
+2. Generate a VAPID key pair with `npm run push:keys`. Add `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to Vercel. Use a real contact for the subject, such as `mailto:you@example.com`.
+3. Set `APP_URL` to the deployed HTTPS site URL and create a strong random `PUSH_WEBHOOK_SECRET`. Add the database and push values to `.env.local` for local development. `.env.example` shows the variable names; never commit private keys or `.env.local`.
+4. In GitHub, open **Settings → Secrets and variables → Actions** and add repository secrets `PUSH_NOTIFY_URL` (the deployed app URL) and `PUSH_WEBHOOK_SECRET` (the same secret as in Vercel). The included workflow watches `main` for newly added dated Markdown files in `content/readings/`, including files created by Telegram. If your production branch is not `main`, update the workflow branch filter.
+5. Redeploy after adding the Vercel environment variables. On first visit to the Home page, readers can accept the in-app consent prompt and then the browser permission prompt. On iPhone/iPad, users need to add the site to their Home Screen before enabling push notifications.
+
+The VAPID public key is exposed to the browser for subscription setup; keep `VAPID_PRIVATE_KEY` and `PUSH_WEBHOOK_SECRET` secret. The notification endpoint accepts requests only from GitHub Actions with that secret. If push delivery fails, check the GitHub Actions run and Vercel function logs.
 
 ## Brand asset
 

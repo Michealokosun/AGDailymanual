@@ -228,7 +228,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await sendTelegramMessage(
       message.chat.id,
-      `Saved “${topic}” for ${date}. You can refresh your web page`,
+      `Saved “${topic}” for ${date}. Push notifications will be sent to subscribed devices by GitHub Actions.`,
       message.message_id,
     );
   } catch (replyError) {

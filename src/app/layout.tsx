@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "Evangel Daily Meal | Daily Readings",
   description: "Read, reflect, and grow in faith with Evangel Daily Meal.",
   applicationName: "Evangel Daily Meal",
+  manifest: "/manifest.webmanifest",
+  icons: { apple: "/ag-logo.png" },
 };
 
 export const viewport: Viewport = {
