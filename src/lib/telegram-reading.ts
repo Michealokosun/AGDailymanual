@@ -94,7 +94,7 @@ function sectionByPrefix(source: string, prefix: string, nextPrefixes: string[])
 
 function verseDetails(value: string): { text: string; reference?: string; translation?: string } {
   const cleaned = cleanValue(value).replace(/^['“"]|['”"]$/g, "").trim();
-  const match = cleaned.match(/\(([^()]*)\)\s*$/);
+  const match = cleaned.match(/\(([^()]*)\)[.!?,;:]?\s*$/);
   if (!match) return { text: cleaned };
   const parts = match[1].split(/,\s*/);
   const reference = parts[0]?.trim();
