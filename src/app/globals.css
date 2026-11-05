@@ -254,7 +254,7 @@ a:focus-visible { outline: 3px solid #b67b12; outline-offset: 3px; border-radius
   .section-heading h2 { font-size: 22px; }
   .archive-controls { align-items: flex-end; flex-direction: column-reverse; gap: 6px; }
   .week-filter { min-height: 36px; padding-inline: 9px; }
-  .week-filter__label { display: none; }
+  .week-filter__label { display: inline; }
   .reading-card { min-height: 72px; padding: 10px; grid-template-columns: 34px minmax(69px, 83px) minmax(0, 1fr) 16px; gap: 9px; }
   .day-mark { width: 33px; height: 33px; border-radius: 9px; }
   .reading-card__date strong { font-size: 11px; }
