@@ -35,7 +35,7 @@ async function sendTelegramMessage(chatId: number, text: string, replyTo?: numbe
 }
 
 async function downloadTextDocument(fileId: string, fileName: string | undefined, fileSize?: number): Promise<string> {
-  if (!fileName || !fileName.toLowerCase().endsWith(".txt")) throw new Error("For long lessons, attach a plain-text .txt file with /reading in its caption.");
+  if (!fileName || !fileName.toLowerCase().endsWith(".txt")) throw new Error("For long lessons, attach a plain-text .txt file with /publish in its caption.");
   if (fileSize !== undefined && fileSize > 1_000_000) throw new Error("The reading text file must be smaller than 1 MB.");
   const token = requiredEnvironment("TELEGRAM_BOT_TOKEN");
   const fileInfoResponse = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`);
@@ -109,7 +109,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const input = message.text ?? message.caption ?? "";
-  const command = input.match(/^\/reading(?:@[A-Za-z0-9_]+)?(?:\s|$)/);
+  const command = input.match(/^\/(?:publish|reading)(?:@[A-Za-z0-9_]+)?(?:\s|$)/i);
   if (!command) return Response.json({ ok: true, ignored: true });
 
   let readingText = input.slice(command[0].length).trim();
@@ -117,7 +117,7 @@ export async function POST(request: Request): Promise<Response> {
   let date: string;
   try {
     if (message.document) readingText = await downloadTextDocument(message.document.file_id, message.document.file_name, message.document.file_size);
-    if (!readingText) throw new Error("Send the full reading after /reading, with its date and reading sections.");
+    if (!readingText) throw new Error("Send the full reading after /publish, with its date and reading sections.");
     const parsed = parseTelegramReading(readingText);
     topic = parsed.draft.topic;
     date = parsed.draft.date;
