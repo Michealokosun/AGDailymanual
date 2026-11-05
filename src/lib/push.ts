@@ -65,7 +65,7 @@ export async function notifyNewReading({
   const rows = queryResult as StoredPushSubscription[];
   if (rows.length === 0) return 0;
 
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+  const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
   const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
   const subject = process.env.VAPID_SUBJECT?.trim();
   if (!publicKey || !privateKey || !subject) {

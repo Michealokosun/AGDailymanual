@@ -32,7 +32,29 @@ export function PushNotificationPrompt() {
   const [iosInstallNeeded, setIosInstallNeeded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const [publicKey, setPublicKey] = useState("");
+  const [configLoading, setConfigLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/push/config", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Push notifications are not configured");
+        return (await response.json()) as { publicKey?: unknown };
+      })
+      .then((config) => {
+        if (active && typeof config.publicKey === "string") {
+          setPublicKey(config.publicKey);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setConfigLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (sessionStorage.getItem(DISMISSED_KEY)) return;
@@ -181,13 +203,15 @@ export function PushNotificationPrompt() {
             className="push-prompt__allow"
             type="button"
             onClick={allowNotifications}
-            disabled={busy}
+            disabled={busy || (configLoading && !iosInstallNeeded)}
           >
             {busy
               ? "Setting up alerts…"
               : iosInstallNeeded
                 ? "How to enable"
-                : "Allow notifications"}
+                : configLoading
+                  ? "Preparing alerts…"
+                  : "Allow notifications"}
           </button>
           <button
             className="push-prompt__later"
