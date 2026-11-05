@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ReadingCard } from "@/components/ReadingCard";
-import { getReading, getReadingsForDates } from "@/data/readings";
+import { ReadingArchive } from "@/components/ReadingArchive";
+import { getAllReadings, getReading } from "@/data/readings";
 import { currentWeek, dateLabel, lagosToday } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -8,12 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const today = lagosToday();
   const days = currentWeek(today);
-  const weekReadings = await getReadingsForDates(
-    days.map((day) => day.readingId),
-  );
-  const availableDays = days.filter(
-    (day) => weekReadings[day.readingId]?.available,
-  );
+  const allReadings = await getAllReadings();
   const todayReading = await getReading(today);
   const todayDay = days.find((day) => day.date === today)!;
 
@@ -97,32 +92,7 @@ export default async function HomePage() {
         id="this-week"
         aria-labelledby="week-heading"
       >
-        <div className="section-heading">
-          <div>
-            <p className="overline">MONDAY – SUNDAY</p>
-            <h2 id="week-heading">This week’s readings</h2>
-          </div>
-          <span className="reading-count">
-            {availableDays.length}{" "}
-            {availableDays.length === 1 ? "reading" : "readings"}
-          </span>
-        </div>
-        <div className="reading-list">
-          {availableDays.length > 0 ? (
-            availableDays.map((day) => (
-              <ReadingCard
-                key={day.date}
-                day={day}
-                today={today}
-                reading={weekReadings[day.readingId]}
-              />
-            ))
-          ) : (
-            <p className="empty-week">
-              No readings have been added for this week yet.
-            </p>
-          )}
-        </div>
+        <ReadingArchive readings={allReadings} today={today} />
       </section>
 
       <footer className="page-footer">

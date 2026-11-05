@@ -131,10 +131,17 @@ async function saveReading(path: string, markdown: string): Promise<void> {
     }),
   });
   if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as {
+      message?: unknown;
+    } | null;
+    const detail =
+      typeof errorBody?.message === "string"
+        ? ` GitHub says: ${errorBody.message}`
+        : "";
     const description =
       response.status === 422
-        ? "GitHub rejected the file. It may already exist or the branch may be protected."
-        : `GitHub could not save the file (status ${response.status}).`;
+        ? `GitHub rejected the file. It may already exist or the branch may be protected.${detail}`
+        : `GitHub could not save the file (status ${response.status}).${detail}`;
     throw new Error(description);
   }
 }
@@ -221,7 +228,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await sendTelegramMessage(
       message.chat.id,
-      `Saved “${topic}” for ${date}. GitHub will deploy the updated reading after the commit is built.`,
+      `Saved “${topic}” for ${date}. You can refresh your web page`,
       message.message_id,
     );
   } catch (replyError) {
