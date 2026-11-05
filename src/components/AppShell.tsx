@@ -2,10 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PushNotificationPrompt } from "@/components/PushNotificationPrompt";
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const [showSplash, setShowSplash] = useState(true);
+  const pathname = usePathname();
   useEffect(() => {
     const timeout = window.setTimeout(() => setShowSplash(false), 1300);
     return () => window.clearTimeout(timeout);
@@ -43,6 +46,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <span><strong>Evangel</strong><small>DAILY MEAL</small></span>
             </Link>
             <div className="topbar__right"><span className="today-dot" /> <span>Daily devotionals</span></div>
+            {pathname === "/" && <PushNotificationPrompt />}
           </header>
           <main className="main-content">{children}</main>
           <nav className="mobile-nav" aria-label="Main navigation">

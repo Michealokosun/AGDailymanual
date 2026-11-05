@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const DISMISSED_KEY = "evangel-push-prompt-dismissed";
+const DISMISSED_KEY = "evangel-push-prompt-dismissed-v2";
 
 function needsIOSHomeScreen(): boolean {
   const ios =
@@ -176,22 +176,33 @@ export function PushNotificationPrompt() {
   if (!open) return null;
 
   return (
-    <div className="push-prompt-backdrop">
+    <div className="push-prompt-anchor">
       <section
         className="push-prompt"
-        role="dialog"
-        aria-modal="true"
+        role="region"
         aria-labelledby="push-prompt-title"
         aria-describedby="push-prompt-description"
       >
-        <div className="push-prompt__icon" aria-hidden="true">
-          ♧
+        <div className="push-prompt__heading">
+          <div className="push-prompt__icon" aria-hidden="true">♧</div>
+          <div>
+            <p className="overline">NEW READING ALERTS</p>
+            <h2 id="push-prompt-title">Stay updated</h2>
+          </div>
+          <button
+            className="push-prompt__close"
+            type="button"
+            onClick={dismiss}
+            aria-label="Dismiss notification prompt"
+            disabled={busy}
+          >
+            ×
+          </button>
         </div>
-        <p className="overline">A MOMENT IN THE WORD</p>
-        <h2 id="push-prompt-title">Never miss a new devotional</h2>
         <p id="push-prompt-description" className="push-prompt__copy">
-          Would you like to receive a notification when a new reading is
-          published?
+          {iosInstallNeeded
+            ? "Add this app to your Home Screen to receive new devotional alerts."
+            : "Would you like to know when a new devotional is published?"}
         </p>
         {message && (
           <p className="push-prompt__message" role="status">
@@ -206,12 +217,12 @@ export function PushNotificationPrompt() {
             disabled={busy || (configLoading && !iosInstallNeeded)}
           >
             {busy
-              ? "Setting up alerts…"
+              ? "Enabling…"
               : iosInstallNeeded
                 ? "How to enable"
                 : configLoading
-                  ? "Preparing alerts…"
-                  : "Allow notifications"}
+                  ? "Loading…"
+                  : "Allow alerts"}
           </button>
           <button
             className="push-prompt__later"
@@ -222,10 +233,7 @@ export function PushNotificationPrompt() {
             Not now
           </button>
         </div>
-        <p className="push-prompt__note">
-          You can choose not to allow notifications. Your reading experience
-          will stay the same.
-        </p>
+        <p className="push-prompt__note">You can dismiss this and keep reading.</p>
       </section>
     </div>
   );

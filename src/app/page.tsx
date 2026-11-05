@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ReadingArchive } from "@/components/ReadingArchive";
-import { PushNotificationPrompt } from "@/components/PushNotificationPrompt";
 import { getAllReadings, getReading } from "@/data/readings";
 import { currentWeek, dateLabel, lagosToday } from "@/lib/dates";
 
@@ -15,7 +14,6 @@ export default async function HomePage() {
 
   return (
     <div className="home-page">
-      <PushNotificationPrompt />
       <section className="welcome-row">
         <div>
           <p className="overline">YOUR WEEK IN THE WORD</p>
