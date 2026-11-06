@@ -140,36 +140,58 @@ function parseSundaySchool(source: string, date: string): ReadingDraft {
   const lines = source.split("\n");
   const dateIndex = lines.findIndex((line) => /\bLESSON\s+\d+/i.test(cleanLine(line)));
   const lessonNumber = dateIndex >= 0 ? cleanLine(lines[dateIndex]).match(/\bLESSON\s+(\d+)/i)?.[1] : undefined;
-  const topic = lines.slice(Math.max(0, dateIndex + 1)).map(cleanLine).find((line) => /^[A-Z0-9][A-Z0-9 '&–—:,.!?()-]{3,}$/.test(line) && !/^(UNIT|MEMORY VERSE|CENTRAL TRUTH|THE LESSON OUTLINE)/.test(line));
+  const titleLines = lines.slice(Math.max(0, dateIndex + 1)).map(cleanLine);
+  const topic = titleLines.find((line) =>
+    line.length >= 4 &&
+    line.length <= 120 &&
+    !/^[-_=*]{3,}$/.test(line) &&
+    !/^(UNIT\b|LESSON\b|MEMORY\b|KEY VERSE\b|CENTRAL TRUTH\b|LESSON OUTLINE\b|LEARNING OBJECTIVES\b|INTRODUCING THE LESSON\b|THE HOLY SCRIPTURES\b)/i.test(line) &&
+    !/^(https?:\/\/|\[)/i.test(line),
+  );
   const unitIndex = lines.findIndex((line) => /^\s*\*?UNIT\s+\d+/i.test(line));
   const unitNumber = unitIndex >= 0 ? cleanLine(lines[unitIndex]).match(/\bUNIT\s+\d+/i)?.[0] : undefined;
   const unitTitle = unitIndex >= 0 ? lines.slice(unitIndex + 1).map(cleanLine).find(Boolean) ?? "" : "";
   const unit = [unitNumber, unitTitle].filter(Boolean).join(" — ");
 
-  const memoryHeading = lines.find((line) => /MEMORY\s+VERSE/i.test(cleanLine(line)));
-  const memoryRef = memoryHeading?.match(/MEMORY\s+VERSE\s*[–—:-]?\s*([^*]+)/i)?.[1]?.trim();
-  const memoryIndex = memoryHeading ? lines.indexOf(memoryHeading) : -1;
-  const memoryEnd = memoryIndex >= 0 ? lines.findIndex((line, index) => index > memoryIndex && (/^\s*_{4,}\s*$/.test(line) || /CENTRAL\s+TRUTH/i.test(cleanLine(line)))) : -1;
-  const memoryText = memoryIndex >= 0 ? cleanValue(lines.slice(memoryIndex + 1, memoryEnd < 0 ? memoryIndex + 3 : memoryEnd).join("\n")) : undefined;
-  const memoryReferenceLine = memoryText?.match(
-    /(?:^|\n)\s*[—–-]?\s*((?:[1-3]\s*)?[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+\d+:\d+(?:[–—-]\d+)?)(?:\s*\(([^)]+)\))?\s*$/,
+  const memoryHeadingPattern = /\b(?:MEMORY\s*(?:VERSE|SCRIPTURE)|KEY\s*VERSE|SCRIPTURE\s*VERSE)\b/i;
+  const explicitMemoryIndex = lines.findIndex((line) => memoryHeadingPattern.test(cleanLine(line)));
+  const titleIndex = topic ? lines.findIndex((line) => cleanLine(line) === topic) : -1;
+  const memoryIndex = explicitMemoryIndex >= 0 ? explicitMemoryIndex : Math.max(titleIndex + 1, 0);
+  const centralTruthIndex = lines.findIndex((line) => /CENTRAL\s+TRUTH/i.test(cleanLine(line)));
+  const memoryHeading = explicitMemoryIndex >= 0 ? cleanLine(lines[explicitMemoryIndex]) : "";
+  const memoryInlineValue = memoryHeading.replace(/^.*?(?:MEMORY\s*(?:VERSE|SCRIPTURE)|KEY\s*VERSE|SCRIPTURE\s*VERSE)\s*[:–—-]?\s*/i, "").trim();
+  const followingSectionIndex = lines.findIndex((line, index) =>
+    index > memoryIndex && /CENTRAL\s+TRUTH|LESSON OUTLINE|LEARNING OBJECTIVES|INTRODUCING THE LESSON|THE HOLY SCRIPTURES/i.test(cleanLine(line)),
   );
-  const memoryVerseText = memoryReferenceLine
-    ? memoryText?.slice(0, memoryReferenceLine.index).trim()
-    : memoryText;
+  const inferredVerseEnd = followingSectionIndex > memoryIndex
+    ? followingSectionIndex
+    : Math.min(lines.length, memoryIndex + 13);
+  const memoryLines = memoryIndex < lines.length
+    ? [memoryInlineValue, ...lines.slice(explicitMemoryIndex >= 0 ? memoryIndex + 1 : memoryIndex, inferredVerseEnd)].filter(Boolean).filter((line) => !/^\s*(?:---+|___+|\*\*\*+)\s*$/.test(line))
+    : [];
+  const referencePattern = /((?:[1-3]\s*)?[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+\d+:\d+(?:\s*[-–—]\s*\d+)?)(?:\s*\(([^)]+)\))?/;
+  const referenceSource = memoryLines.map(cleanLine).find((line) => referencePattern.test(line)) || "";
+  const memoryReferenceLine = referenceSource.match(referencePattern);
+  const resolvedMemoryReference = memoryReferenceLine?.[1]?.trim();
+  const verseContentLines = memoryLines
+    .map(cleanLine)
+    .map((line) => line.replace(referencePattern, "").replace(/^\s*[—–-]\s*/, "").trim())
+    .filter(Boolean);
+  const memoryVerseText = cleanValue(verseContentLines.join("\n")) || undefined;
   const verseParts = memoryVerseText ? verseDetails(memoryVerseText) : undefined;
-  const centralTruth = sectionByPrefix(source, "CENTRAL TRUTH", ["THE LESSON OUTLINE", "LEARNING OBJECTIVES", "Introducing the Lesson", "THE HOLY SCRIPTURES"]);
+  const centralTruth = sectionByPrefix(source, "CENTRAL TRUTH", ["THE LESSON OUTLINE", "LESSON OUTLINE", "LEARNING OBJECTIVES", "Introducing the Lesson", "THE HOLY SCRIPTURES"]);
   const objectivesText = sectionByPrefix(source, "LEARNING OBJECTIVES", ["Introducing the Lesson", "THE HOLY SCRIPTURES", "Commentary and Application"]);
   const learningObjectives = objectivesText?.split("\n").map((line) => line.replace(/^\d+[.)]\s*/, "").trim()).filter((line) => line && !/^At the end of this lesson/i.test(line));
   const outlineIndex = lines.findIndex((line) => /LESSON OUTLINE/i.test(cleanLine(line)));
   const introIndex = lines.findIndex((line) => /INTRODUCING THE LESSON/i.test(cleanLine(line)));
-  const bodyStart = outlineIndex >= 0 ? outlineIndex : introIndex;
+  const scriptureIndex = lines.findIndex((line) => /THE HOLY SCRIPTURES/i.test(cleanLine(line)));
+  const commentaryIndex = lines.findIndex((line) => /COMMENTARY AND APPLICATION|LESSON CONTENT/i.test(cleanLine(line)));
+  const bodyStart = [outlineIndex, introIndex, scriptureIndex, commentaryIndex].filter((index) => index >= 0).sort((a, b) => a - b)[0] ?? Math.max(dateIndex + 1, 0);
   const body = bodyStart >= 0 ? cleanBody(lines.slice(bodyStart).join("\n")) : "";
   const publication = lines.map(cleanLine).find((line) => /SUNDAY SCHOOL LESSON/i.test(line)) ?? "Sunday School";
 
   if (!topic || !body) throw new Error("Sunday School readings need a lesson title and lesson outline or introduction.");
-  const resolvedMemoryReference = memoryRef ?? memoryReferenceLine?.[1];
-  if (!memoryVerseText || !resolvedMemoryReference) throw new Error("Add a MEMORY VERSE heading with its reference and verse text.");
+  if (!memoryVerseText || !resolvedMemoryReference) throw new Error("Add a memory verse with its Bible reference (for example, John 3:14). You can format the heading and reference however you like.");
 
   return {
     date, type: "sunday-school", topic, body, publication, unit, lessonNumber,
