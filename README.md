@@ -69,11 +69,38 @@ The production build also runs this check automatically. It catches invalid date
 
 ## Publish from Telegram
 
-An approved sender can post `/publish` followed by the complete reading in the configured Telegram group. For long Sunday School lessons, attach a UTF-8 `.txt` file and put `/publish` in the caption. The bot validates and converts the message to a dated Markdown file, commits it to the configured GitHub repository, and replies with the result. Existing readings are not overwritten. `/reading` is also accepted as an alias.
+An approved sender can post `/publish` followed by the complete reading in the configured Telegram group. For long Sunday School lessons, attach a UTF-8 `.txt` file and put `/publish` in the caption. The bot validates and converts the message to a dated Markdown file, commits it to the configured GitHub repository, and replies with the result. Existing readings are not overwritten by `/publish`; `/reading` is also accepted as an alias.
+
+### Update an existing reading
+
+Use `/update YYYY-MM-DD` followed by the **complete corrected reading**. The date in the command must match the date in the reading. The bot updates the matching file only if it already exists, and replies with the result. If no reading exists for that date, use `/publish` instead. Updates replace the full reading, so include every section you want to keep. Updating a reading does not send a new-reading push alert.
+
+Example:
+
+```text
+/update 2026-11-05
+EVANGEL DAILY MEAL
+Thursday November 5, 2026.
+TOPIC:
+THE CORRECTED TOPIC
+TEXT:
+John 5:1-9
+KEY VERSE: "Your complete key verse text" (Psalm 139:14, NIV)
+MESSAGE:
+The full corrected devotional message goes here.
+CONTROLLING THOUGHT:
+The corrected takeaway.
+PRAYER:
+The corrected prayer.
+ONE YEAR BIBLE STUDY PLAN:
+Matthew 23, Luke 20-21
+```
+
+For a long lesson, attach a UTF-8 `.txt` file and use `/update YYYY-MM-DD` as the caption. Keep the date inside the attached reading consistent with the command date. The bot checks that the file exists and uses GitHub's file version when saving, which prevents accidentally creating a duplicate or overwriting a concurrent edit.
 
 ### Set up the bot
 
-1. Create a bot with [@BotFather](https://t.me/BotFather). Use `/setcommands` to add `publish - Publish a devotional or Sunday School lesson`.
+1. Create a bot with [@BotFather](https://t.me/BotFather). Use `/setcommands` to add `publish - Publish a devotional or Sunday School lesson`, `update - Update an existing reading`, and `reading - Publish a devotional or Sunday School lesson`.
 2. Add the bot to a private submission group. Configure the group ID and approved sender IDs so only authorized members can publish.
 3. Create a GitHub fine-grained personal access token scoped to the repository with **Contents: Read and write** permission.
 4. Copy `.env.example` to `.env.local` and fill in the Telegram and GitHub values listed below.

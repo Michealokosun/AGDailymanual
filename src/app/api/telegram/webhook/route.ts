@@ -95,7 +95,11 @@ function requiredEnvironment(name: string): string {
   return value;
 }
 
-async function saveReading(path: string, markdown: string): Promise<void> {
+async function saveReading(
+  path: string,
+  markdown: string,
+  mode: "create" | "update",
+): Promise<void> {
   const owner = requiredEnvironment("GITHUB_OWNER");
   const repository = requiredEnvironment("GITHUB_REPO");
   const token = requiredEnvironment("GITHUB_TOKEN");
@@ -112,22 +116,34 @@ async function saveReading(path: string, markdown: string): Promise<void> {
     headers,
     cache: "no-store",
   });
-  if (existing.ok)
-    throw new Error(
-      "A reading for that date already exists. Nothing was overwritten.",
-    );
-  if (existing.status !== 404)
+  let sha: string | undefined;
+  if (existing.ok) {
+    if (mode === "create")
+      throw new Error(
+        "A reading for that date already exists. Use /update YYYY-MM-DD to replace it.",
+      );
+    const existingFile = (await existing.json()) as { sha?: unknown };
+    if (typeof existingFile.sha !== "string")
+      throw new Error("GitHub did not provide the existing file version. Nothing was changed.");
+    sha = existingFile.sha;
+  } else if (existing.status !== 404) {
     throw new Error(
       `GitHub could not check the target file (status ${existing.status}).`,
     );
+  } else if (mode === "update") {
+    throw new Error(
+      "No reading exists for that date, so there is nothing to update. Use /publish to add it.",
+    );
+  }
 
   const response = await fetch(apiUrl, {
     method: "PUT",
     headers,
     body: JSON.stringify({
-      message: `Add reading for ${path.slice("content/readings/".length, -3)}`,
+      message: `${mode === "update" ? "Update" : "Add"} reading for ${path.slice("content/readings/".length, -3)}`,
       content: Buffer.from(markdown, "utf8").toString("base64"),
       branch,
+      ...(sha ? { sha } : {}),
     }),
   });
   if (!response.ok) {
@@ -182,14 +198,29 @@ export async function POST(request: Request): Promise<Response> {
 
   const input = message.text ?? message.caption ?? "";
   const command = input.match(
-    /^\/(?:publish|reading)(?:@[A-Za-z0-9_]+)?(?:\s|$)/i,
+    /^\/(publish|reading|update)(?:@[A-Za-z0-9_]+)?(?:\s|$)/i,
   );
   if (!command) return Response.json({ ok: true, ignored: true });
 
+  const mode = command[1].toLowerCase() === "update" ? "update" : "create";
   let readingText = input.slice(command[0].length).trim();
+  let requestedDate: string | undefined;
+  if (mode === "update") {
+    const dateArgument = readingText.match(/^(20\d{2}-\d{2}-\d{2})(?:\s|$)/);
+    if (!dateArgument)
+      readingText = "";
+    else {
+      requestedDate = dateArgument[1];
+      readingText = readingText.slice(dateArgument[0].length).trim();
+    }
+  }
   let topic: string;
   let date: string;
   try {
+    if (mode === "update" && !requestedDate)
+      throw new Error(
+        "To update a reading, use /update YYYY-MM-DD followed by the complete corrected reading.",
+      );
     if (message.document)
       readingText = await downloadTextDocument(
         message.document.file_id,
@@ -198,13 +229,19 @@ export async function POST(request: Request): Promise<Response> {
       );
     if (!readingText)
       throw new Error(
-        "Send the full reading after /publish, with its date and reading sections.",
+        mode === "update"
+          ? "To update a reading, use /update YYYY-MM-DD followed by the complete corrected reading."
+          : "Send the full reading after /publish, with its date and reading sections.",
       );
     const parsed = parseTelegramReading(readingText);
     topic = parsed.draft.topic;
     date = parsed.draft.date;
+    if (requestedDate && requestedDate !== date)
+      throw new Error(
+        `The command date (${requestedDate}) must match the reading date (${date}). Nothing was changed.`,
+      );
     const path = `content/readings/${date}.md`;
-    await saveReading(path, parsed.markdown);
+    await saveReading(path, parsed.markdown, mode);
   } catch (error) {
     const messageText =
       error instanceof Error
@@ -228,7 +265,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await sendTelegramMessage(
       message.chat.id,
-      `Saved “${topic}” for ${date}. Push notifications will be sent to subscribed devices by GitHub Actions.`,
+      `${mode === "update" ? "Updated" : "Saved"} “${topic}” for ${date}.${mode === "create" ? " Push notifications will be sent to subscribed devices by GitHub Actions." : " The existing reading was replaced; no new-reading alert was sent."}`,
       message.message_id,
     );
   } catch (replyError) {
