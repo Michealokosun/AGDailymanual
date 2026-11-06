@@ -25,7 +25,11 @@ const MONTHS: Record<string, string> = {
 };
 
 function cleanLine(line: string): string {
-  return line.replace(/[`*_<>]/g, "").replace(/<[^>]*>/g, "").trim();
+  return line
+    .replace(/^\s{0,3}#{1,6}\s*/, "")
+    .replace(/[`*_<>]/g, "")
+    .replace(/<[^>]*>/g, "")
+    .trim();
 }
 
 function cleanValue(value: string): string {
@@ -147,23 +151,30 @@ function parseSundaySchool(source: string, date: string): ReadingDraft {
   const memoryIndex = memoryHeading ? lines.indexOf(memoryHeading) : -1;
   const memoryEnd = memoryIndex >= 0 ? lines.findIndex((line, index) => index > memoryIndex && (/^\s*_{4,}\s*$/.test(line) || /CENTRAL\s+TRUTH/i.test(cleanLine(line)))) : -1;
   const memoryText = memoryIndex >= 0 ? cleanValue(lines.slice(memoryIndex + 1, memoryEnd < 0 ? memoryIndex + 3 : memoryEnd).join("\n")) : undefined;
-  const verseParts = memoryText ? verseDetails(memoryText) : undefined;
+  const memoryReferenceLine = memoryText?.match(
+    /(?:^|\n)\s*[—–-]?\s*((?:[1-3]\s*)?[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+\d+:\d+(?:[–—-]\d+)?)(?:\s*\(([^)]+)\))?\s*$/,
+  );
+  const memoryVerseText = memoryReferenceLine
+    ? memoryText?.slice(0, memoryReferenceLine.index).trim()
+    : memoryText;
+  const verseParts = memoryVerseText ? verseDetails(memoryVerseText) : undefined;
   const centralTruth = sectionByPrefix(source, "CENTRAL TRUTH", ["THE LESSON OUTLINE", "LEARNING OBJECTIVES", "Introducing the Lesson", "THE HOLY SCRIPTURES"]);
   const objectivesText = sectionByPrefix(source, "LEARNING OBJECTIVES", ["Introducing the Lesson", "THE HOLY SCRIPTURES", "Commentary and Application"]);
   const learningObjectives = objectivesText?.split("\n").map((line) => line.replace(/^\d+[.)]\s*/, "").trim()).filter((line) => line && !/^At the end of this lesson/i.test(line));
-  const outlineIndex = lines.findIndex((line) => /THE LESSON OUTLINE/i.test(cleanLine(line)));
+  const outlineIndex = lines.findIndex((line) => /LESSON OUTLINE/i.test(cleanLine(line)));
   const introIndex = lines.findIndex((line) => /INTRODUCING THE LESSON/i.test(cleanLine(line)));
   const bodyStart = outlineIndex >= 0 ? outlineIndex : introIndex;
   const body = bodyStart >= 0 ? cleanBody(lines.slice(bodyStart).join("\n")) : "";
   const publication = lines.map(cleanLine).find((line) => /SUNDAY SCHOOL LESSON/i.test(line)) ?? "Sunday School";
 
   if (!topic || !body) throw new Error("Sunday School readings need a lesson title and lesson outline or introduction.");
-  if (!memoryText || !memoryRef) throw new Error("Add a MEMORY VERSE heading with its reference and verse text.");
+  const resolvedMemoryReference = memoryRef ?? memoryReferenceLine?.[1];
+  if (!memoryVerseText || !resolvedMemoryReference) throw new Error("Add a MEMORY VERSE heading with its reference and verse text.");
 
   return {
     date, type: "sunday-school", topic, body, publication, unit, lessonNumber,
-    keyVerse: verseParts?.text ?? memoryText, keyVerseReference: memoryRef,
-    translation: memoryText.match(/\(([^()]*)\)\s*$/)?.[1]?.trim(),
+    keyVerse: verseParts?.text ?? memoryVerseText, keyVerseReference: resolvedMemoryReference,
+    translation: memoryReferenceLine?.[2]?.trim() ?? memoryVerseText.match(/\(([^()]*)\)\s*$/)?.[1]?.trim(),
     centralTruth, learningObjectives: learningObjectives?.length ? learningObjectives : undefined,
   };
 }
