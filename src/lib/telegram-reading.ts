@@ -180,6 +180,7 @@ function parseSundaySchool(source: string, date: string): ReadingDraft {
   const memoryVerseText = cleanValue(verseContentLines.join("\n")) || undefined;
   const verseParts = memoryVerseText ? verseDetails(memoryVerseText) : undefined;
   const centralTruth = sectionByPrefix(source, "CENTRAL TRUTH", ["THE LESSON OUTLINE", "LESSON OUTLINE", "LEARNING OBJECTIVES", "Introducing the Lesson", "THE HOLY SCRIPTURES"]);
+  const scripture = resolvedMemoryReference;
   const objectivesText = sectionByPrefix(source, "LEARNING OBJECTIVES", ["Introducing the Lesson", "THE HOLY SCRIPTURES", "Commentary and Application"]);
   const learningObjectives = objectivesText?.split("\n").map((line) => line.replace(/^\d+[.)]\s*/, "").trim()).filter((line) => line && !/^At the end of this lesson/i.test(line));
   const outlineIndex = lines.findIndex((line) => /LESSON OUTLINE/i.test(cleanLine(line)));
@@ -194,7 +195,7 @@ function parseSundaySchool(source: string, date: string): ReadingDraft {
   if (!memoryVerseText || !resolvedMemoryReference) throw new Error("Add a memory verse with its Bible reference (for example, John 3:14). You can format the heading and reference however you like.");
 
   return {
-    date, type: "sunday-school", topic, body, publication, unit, lessonNumber,
+    date, type: "sunday-school", topic, body, publication, unit, lessonNumber, scripture,
     keyVerse: verseParts?.text ?? memoryVerseText, keyVerseReference: resolvedMemoryReference,
     translation: memoryReferenceLine?.[2]?.trim() ?? memoryVerseText.match(/\(([^()]*)\)\s*$/)?.[1]?.trim(),
     centralTruth, learningObjectives: learningObjectives?.length ? learningObjectives : undefined,

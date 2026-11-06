@@ -81,9 +81,11 @@ async function readMarkdown(id: string): Promise<Devotional | undefined> {
   if (!topic) throw new Error(`Reading file ${id}.md is missing its required topic`);
   if (!body) throw new Error(`Reading file ${id}.md has no Markdown content below its front matter`);
 
-  const scripture = textField(metadata, "scripture");
   const keyVerse = textField(metadata, "keyVerse");
   const keyVerseReference = textField(metadata, "keyVerseReference");
+  const scripture = kind === "sunday-school"
+    ? keyVerseReference
+    : textField(metadata, "scripture");
   const translation = textField(metadata, "translation");
   const annualTheme = textField(metadata, "annualTheme");
   const annualThemeReference = textField(metadata, "annualThemeReference");
