@@ -150,7 +150,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     await saveMarkdown(id, date, matter.stringify(body, attributes), mode);
-    return NextResponse.json({ ok: true, id, date, title, mode, branch, scripture: category === "sunday-school" ? keyVerseReference : stringValue(input.scripture) });
+    return NextResponse.json({ ok: true, id, date, title, mode, scripture: category === "sunday-school" ? keyVerseReference : stringValue(input.scripture) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The reading could not be saved.";
     console.error("Admin reading publish failed", error);
