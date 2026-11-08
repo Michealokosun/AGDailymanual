@@ -26,9 +26,9 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { date?: unknown; topic?: unknown };
+  let body: { id?: unknown; date?: unknown; topic?: unknown };
   try {
-    body = (await request.json()) as { date?: unknown; topic?: unknown };
+    body = (await request.json()) as { id?: unknown; date?: unknown; topic?: unknown };
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -36,6 +36,7 @@ export async function POST(request: Request): Promise<Response> {
   if (
     typeof body.date !== "string" ||
     !/^\d{4}-\d{2}-\d{2}$/.test(body.date) ||
+    (body.id !== undefined && (typeof body.id !== "string" || !/^\d{4}-\d{2}-\d{2}(?:--[a-z0-9-]+)?$/.test(body.id))) ||
     typeof body.topic !== "string" ||
     !body.topic.trim() ||
     body.topic.length > 250
@@ -49,6 +50,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const notified = await notifyNewReading({
       date: body.date,
+      id: typeof body.id === "string" ? body.id : body.date,
       topic: body.topic.trim(),
     });
     return NextResponse.json({ ok: true, notified });

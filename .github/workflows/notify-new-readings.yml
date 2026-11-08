@@ -3,7 +3,7 @@ name: Notify subscribers about new readings
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - "content/readings/*.md"
 

@@ -9,8 +9,6 @@
     "start": "next start",
     "lint": "eslint .",
     "content:check": "node scripts/validate-readings.mjs",
-    "telegram:webhook": "node --env-file=.env.local scripts/register-telegram-webhook.mjs",
-    "telegram:ids": "node --env-file=.env.local scripts/inspect-telegram-updates.mjs",
     "push:keys": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {

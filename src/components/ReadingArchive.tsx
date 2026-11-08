@@ -44,6 +44,7 @@ export function ReadingArchive({
   today: string;
 }) {
   const [selectedWeek, setSelectedWeek] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const weeks = useMemo(() => weekOptions(readings, today), [readings, today]);
   const visibleReadings = useMemo(
     () =>
@@ -52,8 +53,9 @@ export function ReadingArchive({
           (reading) =>
             selectedWeek === "all" || mondayOf(reading.date) === selectedWeek,
         )
+        .filter((reading) => selectedCategory === "all" || reading.kind === selectedCategory)
         .sort((a, b) => b.date.localeCompare(a.date)),
-    [readings, selectedWeek],
+    [readings, selectedWeek, selectedCategory],
   );
   const selectedWeekLabel = weeks.find((week) => week.id === selectedWeek);
 
@@ -90,6 +92,16 @@ export function ReadingArchive({
               ▾
             </span>
           </label>
+          <label className="week-filter category-filter">
+            <span aria-hidden="true">✦</span>
+            <span className="week-filter__label">{selectedCategory === "all" ? "All categories" : selectedCategory === "daily" ? "Daily Reading" : "Sunday School"}</span>
+            <select aria-label="Filter readings by category" value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)}>
+              <option value="all">All categories</option>
+              <option value="daily">Daily Reading</option>
+              <option value="sunday-school">Sunday School</option>
+            </select>
+            <span className="week-filter__chevron" aria-hidden="true">▾</span>
+          </label>
         </div>
       </div>
 
@@ -100,12 +112,12 @@ export function ReadingArchive({
             const day = {
               weekday: weekdayLabel(reading.date),
               date: reading.date,
-              readingId: reading.date,
+              readingId: reading.id,
               label: sundaySchool ? "Sunday School" : "Daily Reading",
             };
             return (
               <ReadingCard
-                key={reading.date}
+                key={reading.id}
                 day={day}
                 today={today}
                 reading={reading}
@@ -118,21 +130,17 @@ export function ReadingArchive({
           <span className="archive-empty__icon" aria-hidden="true">
             ◷
           </span>
-          <h3>
-            {readings.length === 0
-              ? "No readings available yet"
-              : "No readings for this week"}
-          </h3>
+          <h3>{readings.length === 0 ? "No readings available yet" : "No readings match these filters"}</h3>
           <p>
             {readings.length === 0
               ? "Published readings will appear here."
-              : "There are no reading files for this week. Choose another week or view the full archive."}
+              : "There are no readings matching these filters. Choose another week or category to see more."}
           </p>
-          {selectedWeek !== "all" && (
+          {(selectedWeek !== "all" || selectedCategory !== "all") && (
             <button
               className="archive-empty__reset"
               type="button"
-              onClick={() => setSelectedWeek("all")}
+              onClick={() => { setSelectedWeek("all"); setSelectedCategory("all"); }}
             >
               Show all readings
             </button>

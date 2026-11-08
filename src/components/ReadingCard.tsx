@@ -8,7 +8,7 @@ export function ReadingCard({ day, today, reading }: { day: Day; today: string; 
   const isToday = day.date === today;
   const sunday = day.label === "Sunday School";
   return (
-    <Link className={`reading-card${isToday ? " is-today" : ""}${sunday ? " is-sunday" : ""}`} href={`/reading/${day.readingId}`}>
+    <Link className={`reading-card${isToday ? " is-today" : ""}${sunday ? " is-sunday" : ""}`} href={`/reading/${reading.id}`}>
       <span className={`day-mark${sunday ? " day-mark--sunday" : ""}`} aria-hidden="true">{sunday ? "✦" : day.weekday.slice(0, 1)}</span>
       <span className="reading-card__date"><strong>{day.weekday}</strong><small>{dateLabel(day.date, { month: "short", day: "numeric" })}{isToday ? <em>Today</em> : null}</small></span>
       <span className="reading-card__details"><span className="reading-card__title">{reading.available ? reading.topic : (sunday ? "Sunday School lesson" : "Daily reading")}</span><span className="reading-card__meta">{reading.available ? reading.scripture : (sunday ? "Lesson details coming soon" : "Reading details coming soon")}</span></span>

@@ -54,9 +54,11 @@ async function removePushSubscription(endpoint: string): Promise<void> {
 export async function notifyNewReading({
   topic,
   date,
+  id,
 }: {
   topic: string;
   date: string;
+  id: string;
 }): Promise<number> {
   const sql = getSql();
   await ensurePushSubscriptionsTable();
@@ -77,7 +79,7 @@ export async function notifyNewReading({
   const payload = JSON.stringify({
     title: "A new devotional is available",
     body: topic,
-    url: `${siteUrl || ""}/reading/${date}`,
+    url: `${siteUrl || ""}/reading/${id}`,
   });
 
   let delivered = 0;

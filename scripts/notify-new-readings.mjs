@@ -21,12 +21,13 @@ const addedFiles = execFileSync("git", diffArgs, { encoding: "utf8" })
   .map((line) => line.trim())
   .filter((line) => line.startsWith("A\t"))
   .map((line) => line.slice(2))
-  .filter((file) => /^content\/readings\/\d{4}-\d{2}-\d{2}\.md$/.test(file));
+  .filter((file) => /^content\/readings\/\d{4}-\d{2}-\d{2}(?:--[a-z0-9-]+)?\.md$/.test(file));
 
 for (const file of addedFiles) {
   const markdown = await readFile(file, "utf8");
   const { data } = matter(markdown);
-  const date = path.basename(file, ".md");
+  const id = path.basename(file, ".md");
+  const date = id.slice(0, 10);
   const topic = typeof data.topic === "string" ? data.topic.trim() : "";
   if (!topic || data.date !== date) {
     throw new Error(`Reading ${file} is missing a matching date or topic`);
@@ -38,7 +39,7 @@ for (const file of addedFiles) {
       authorization: `Bearer ${secret}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ date, topic }),
+    body: JSON.stringify({ id, date, topic }),
   });
   if (!response.ok) {
     throw new Error(`Notification request for ${date} failed with status ${response.status}`);

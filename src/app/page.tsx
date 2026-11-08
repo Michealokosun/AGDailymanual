@@ -9,7 +9,9 @@ export default async function HomePage() {
   const today = lagosToday();
   const days = currentWeek(today);
   const allReadings = await getAllReadings();
-  const todayReading = await getReading(today);
+  const todayReadings = allReadings.filter((reading) => reading.date === today);
+  const isSunday = new Date(`${today}T12:00:00Z`).getUTCDay() === 0;
+  const todayReading = todayReadings.find((reading) => reading.kind === (isSunday ? "sunday-school" : "daily")) ?? todayReadings[0] ?? await getReading(today);
   const todayDay = days.find((day) => day.date === today)!;
 
   return (
@@ -61,7 +63,7 @@ export default async function HomePage() {
               <p className="today-banner__scripture">
                 {todayReading.scripture}
               </p>
-              <Link className="button button--gold" href={`/reading/${today}`}>
+              <Link className="button button--gold" href={`/reading/${todayReading.id}`}>
                 Read today’s devotional <span aria-hidden="true">→</span>
               </Link>
             </>

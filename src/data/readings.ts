@@ -5,6 +5,7 @@ import path from "node:path";
 import matter from "gray-matter";
 
 export type Devotional = {
+  id: string;
   date: string;
   kind: "daily" | "sunday-school";
   title: string;
@@ -52,6 +53,7 @@ function listField(data: Frontmatter, key: string): string[] | undefined {
 function placeholder(id: string): Devotional {
   const sundaySchool = new Date(`${id}T12:00:00Z`).getUTCDay() === 0;
   return {
+    id,
     date: id,
     kind: sundaySchool ? "sunday-school" : "daily",
     title: sundaySchool ? "Sunday School" : "Daily Reading",
@@ -59,8 +61,8 @@ function placeholder(id: string): Devotional {
   };
 }
 
-async function readMarkdown(id: string): Promise<Devotional | undefined> {
-  const filePath = path.join(readingsDirectory, `${id}.md`);
+async function readMarkdown(fileId: string): Promise<Devotional | undefined> {
+  const filePath = path.join(readingsDirectory, `${fileId}.md`);
   let file: string;
   try {
     file = await readFile(filePath, "utf8");
@@ -76,10 +78,10 @@ async function readMarkdown(id: string): Promise<Devotional | undefined> {
   const topic = textField(metadata, "topic");
   const body = content.trim();
 
-  if (fileDate !== id) throw new Error(`Reading file ${id}.md must have matching front matter date: ${id}`);
-  if (kind !== "daily" && kind !== "sunday-school") throw new Error(`Reading file ${id}.md must set type to "daily" or "sunday-school"`);
-  if (!topic) throw new Error(`Reading file ${id}.md is missing its required topic`);
-  if (!body) throw new Error(`Reading file ${id}.md has no Markdown content below its front matter`);
+  if (!fileDate || !isValidDate(fileDate)) throw new Error(`Reading file ${fileId}.md must have a valid front matter date`);
+  if (kind !== "daily" && kind !== "sunday-school") throw new Error(`Reading file ${fileId}.md must set type to "daily" or "sunday-school"`);
+  if (!topic) throw new Error(`Reading file ${fileId}.md is missing its required topic`);
+  if (!body) throw new Error(`Reading file ${fileId}.md has no Markdown content below its front matter`);
 
   const keyVerse = textField(metadata, "keyVerse");
   const keyVerseReference = textField(metadata, "keyVerseReference");
@@ -99,7 +101,8 @@ async function readMarkdown(id: string): Promise<Devotional | undefined> {
   const learningObjectives = listField(metadata, "learningObjectives");
 
   return {
-    date: id,
+    id: fileId,
+    date: fileDate,
     kind,
     title: topic,
     topic,
@@ -123,8 +126,13 @@ async function readMarkdown(id: string): Promise<Devotional | undefined> {
 }
 
 export async function getReading(id: string): Promise<Devotional> {
-  if (!isValidDate(id)) return placeholder("invalid-date");
-  return (await readMarkdown(id)) ?? placeholder(id);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(id) && isValidDate(id)) {
+    const readings = await getAllReadings();
+    return readings.find((reading) => reading.id === id) ?? readings.find((reading) => reading.date === id) ?? placeholder(id);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}(?:--[a-z0-9-]+)?$/.test(id) || !isValidDate(id.slice(0, 10))) return placeholder("invalid-date");
+  const reading = await readMarkdown(id);
+  return reading ?? placeholder(id.slice(0, 10));
 }
 
 export async function getReadingsForDates(ids: string[]): Promise<Record<string, Devotional>> {
@@ -142,8 +150,9 @@ export async function getAllReadings(): Promise<Devotional[]> {
   }
 
   const ids = files
-    .filter((file) => /^\d{4}-\d{2}-\d{2}\.md$/.test(file))
+    .filter((file) => /^\d{4}-\d{2}-\d{2}(?:--[a-z0-9-]+)?\.md$/.test(file))
     .map((file) => file.slice(0, -3))
     .sort();
-  return Promise.all(ids.map((id) => readMarkdown(id).then((reading) => reading!)));
+  const readings = await Promise.all(ids.map((id) => readMarkdown(id).then((reading) => reading!)));
+  return readings.sort((a, b) => b.date.localeCompare(a.date) || a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title));
 }

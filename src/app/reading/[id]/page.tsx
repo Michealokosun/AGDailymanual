@@ -8,8 +8,14 @@ export const dynamic = "force-dynamic";
 
 export default async function ReadingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(id) || Number.isNaN(Date.parse(`${id}T12:00:00Z`))) notFound();
+  if (!/^\d{4}-\d{2}-\d{2}(?:--[a-z0-9-]+)?$/.test(id)) notFound();
   const reading = await getReading(id);
+  const datePart = id.slice(0, 10);
+  const parsedDate = new Date(`${datePart}T00:00:00Z`);
+  const validDate = /^\d{4}-\d{2}-\d{2}/.test(id) && !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === datePart;
+  if (!validDate) notFound();
+  const isDateOnlyId = /^\d{4}-\d{2}-\d{2}$/.test(id);
+  if (!reading.available && !isDateOnlyId) notFound();
   const isSunday = reading.kind === "sunday-school";
 
   return (
@@ -17,7 +23,7 @@ export default async function ReadingPage({ params }: { params: Promise<{ id: st
       <Link href="/#this-week" className="back-link"><span aria-hidden="true">←</span> Back to this week</Link>
       <header className="detail-header">
         <p className="overline">{reading.publication ?? (isSunday ? "SUNDAY SCHOOL" : "EVANGEL DAILY MEAL")}</p>
-        <p className="detail-header__date">{weekdayLabel(id)}, {dateLabel(id)}</p>
+        <p className="detail-header__date">{weekdayLabel(reading.date)}, {dateLabel(reading.date)}</p>
         {reading.available ? <>
           {isSunday ? <p className="detail-header__theme">{reading.unit}{reading.lessonNumber ? <span> · {reading.lessonNumber}</span> : null}</p> : <p className="detail-header__theme">{reading.annualTheme} <span>· {reading.annualThemeReference}</span></p>}
           <h1>{reading.topic}</h1>
