@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "content:check": "node scripts/validate-readings.mjs",
+    "content:import": "node --env-file=.env.local scripts/import-readings-to-db.mjs",
     "push:keys": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {

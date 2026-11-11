@@ -87,6 +87,11 @@ a:focus-visible { outline: 3px solid #b67b12; outline-offset: 3px; border-radius
 .week-filter > span:first-child { color: #96701b; font-size: 15px; }
 .week-filter select { max-width: 145px; position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .week-filter__chevron { color: #8c929b; font-size: 11px; }
+.archive-tabs { margin: 0 0 14px; padding: 4px; display: flex; gap: 4px; width: fit-content; max-width: 100%; border: 1px solid #e9e4d7; border-radius: 10px; background: #f5f2e9; }
+.archive-tabs button { min-height: 37px; padding: 0 17px; border: 0; border-radius: 7px; color: #727b87; background: transparent; font: 600 12px var(--sans); white-space: nowrap; cursor: pointer; transition: color .16s ease, background .16s ease, box-shadow .16s ease; }
+.archive-tabs button:hover { color: var(--navy); }
+.archive-tabs button.is-active { color: #fff9e7; background: var(--navy); box-shadow: 0 2px 7px rgba(23,36,59,.15); }
+.archive-tabs button:focus-visible { outline: 3px solid rgba(182,123,18,.32); outline-offset: 2px; }
 .reading-list { display: grid; gap: 9px; }
 .empty-week { margin: 0; padding: 18px; border: 1px dashed #ddd8c9; border-radius: 10px; color: #7d8796; background: rgba(255,254,250,.7); font-size: 12px; }
 .archive-empty { padding: 32px 20px; border: 1px dashed #ddd8c9; border-radius: 12px; background: rgba(255,254,250,.75); text-align: center; }

@@ -195,6 +195,8 @@ function RichEditor({ initialValue, onChange }: { initialValue: string; onChange
         <span>Formatting is saved in the published reading</span>
       </div>
       <div className="cms-toolbar" aria-label="Text formatting toolbar" hidden={mode !== "write"}>
+        {toolbarButton("↶ Undo", "undo")}{toolbarButton("↷ Redo", "redo")}
+        <span />
         {toolbarButton("B", "bold")}{toolbarButton("I", "italic")}{toolbarButton("H2", "formatBlock", "h2")}{toolbarButton("H3", "formatBlock", "h3")}
         <span />{toolbarButton("• List", "insertUnorderedList")}{toolbarButton("1. List", "insertOrderedList")}{toolbarButton("Quote", "formatBlock", "blockquote")}
         {toolbarButton("Link", "createLink", "https://")}
@@ -209,6 +211,17 @@ function RichEditor({ initialValue, onChange }: { initialValue: string; onChange
         aria-label="Reading body editor"
         aria-multiline="true"
         data-placeholder="Write your reading here. Select text to format it…"
+        onKeyDown={(event) => {
+          if (!(event.ctrlKey || event.metaKey)) return;
+          const key = event.key.toLowerCase();
+          if (key === "z") {
+            event.preventDefault();
+            format(event.shiftKey ? "redo" : "undo");
+          } else if (key === "y") {
+            event.preventDefault();
+            format("redo");
+          }
+        }}
         onInput={(event) => captureEditor(htmlToMarkdown(event.currentTarget.innerHTML))}
       />
       <article hidden={mode !== "preview"} className="cms-preview markdown-content"><ReactMarkdown>{markdown || "_Your preview will appear here._"}</ReactMarkdown></article>
@@ -261,7 +274,7 @@ export function AdminStudio({ initialReadings }: { initialReadings: Devotional[]
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...form, id: mode === "update" ? editorKey : undefined, mode, body: form.body.trim() }),
       });
-      const result = (await response.json()) as { error?: string; id?: string; date?: string; title?: string; branch?: string; scripture?: string };
+      const result = (await response.json()) as { error?: string; id?: string; date?: string; title?: string; scripture?: string; notified?: number };
       if (response.status === 401) {
         window.location.reload();
         return;
@@ -280,7 +293,7 @@ export function AdminStudio({ initialReadings }: { initialReadings: Devotional[]
       setReadings((current) => [saved, ...current.filter((reading) => reading.id !== saved.id)].sort((a, b) => b.date.localeCompare(a.date)));
       setMode("update");
       setEditorKey(saved.id);
-      setNotice(`“${result.title ?? saved.title}” was saved to the ${result.branch ?? "configured"} branch. It will appear on the homepage after Vercel finishes deploying that branch.`);
+      setNotice(`“${result.title ?? saved.title}” was saved to the database and is available on the homepage now.${result.notified ? ` Push notification sent to ${result.notified} device${result.notified === 1 ? "" : "s"}.` : ""}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not publish this reading.");
     } finally {
@@ -335,7 +348,7 @@ export function AdminStudio({ initialReadings }: { initialReadings: Devotional[]
           <RichEditor key={editorKey} initialValue={form.body} onChange={(value) => update("body", value)} />
           {error && <p className="cms-error" role="alert">{error}</p>}
           {notice && <p className="cms-notice" role="status">{notice}</p>}
-          <div className="cms-form__footer"><p>Publishing saves a Markdown file in GitHub. Vercel deploys it to the live site.</p><button className="cms-primary" type="submit" disabled={busy}>{busy ? "Saving…" : mode === "create" ? "Publish reading" : "Save changes"}<span>→</span></button></div>
+          <div className="cms-form__footer"><p>Publishing saves this reading in the database and makes it available on the site.</p><button className="cms-primary" type="submit" disabled={busy}>{busy ? "Saving…" : mode === "create" ? "Publish reading" : "Save changes"}<span>→</span></button></div>
         </form>
       </div>
     </div>

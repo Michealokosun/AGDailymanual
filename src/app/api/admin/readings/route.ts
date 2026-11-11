@@ -1,31 +1,18 @@
-import matter from "gray-matter";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import type { Devotional } from "@/data/readings";
 import { isAdminAuthenticated, isSameOrigin } from "@/lib/admin-auth";
+import { notifyNewReading } from "@/lib/push";
+import { saveReading } from "@/lib/reading-store";
 
 export const runtime = "nodejs";
 
 type ReadingInput = {
-  id?: unknown;
-  mode?: unknown;
-  date?: unknown;
-  category?: unknown;
-  title?: unknown;
-  body?: unknown;
-  scripture?: unknown;
-  keyVerse?: unknown;
-  keyVerseReference?: unknown;
-  translation?: unknown;
-  publication?: unknown;
-  learningObjectives?: unknown;
-  annualTheme?: unknown;
-  annualThemeReference?: unknown;
-  unit?: unknown;
-  lessonNumber?: unknown;
-  centralTruth?: unknown;
-  controllingThought?: unknown;
-  prayer?: unknown;
-  biblePlan?: unknown;
+  id?: unknown; mode?: unknown; date?: unknown; category?: unknown; title?: unknown; body?: unknown;
+  scripture?: unknown; keyVerse?: unknown; keyVerseReference?: unknown; translation?: unknown;
+  publication?: unknown; learningObjectives?: unknown; annualTheme?: unknown; annualThemeReference?: unknown;
+  unit?: unknown; lessonNumber?: unknown; centralTruth?: unknown; controllingThought?: unknown;
+  prayer?: unknown; biblePlan?: unknown;
 };
 
 function stringValue(value: unknown): string {
@@ -38,55 +25,6 @@ function memoryVerseReference(body: string): string {
   const section = body.slice(heading, heading + 1500).split(/\n\s*#{1,6}\s+(?:CENTRAL TRUTH|LESSON OUTLINE|LEARNING OBJECTIVES|INTRODUCING THE LESSON)\b/i)[0];
   const reference = section.match(/((?:[1-3]\s*)?[A-Za-z]+(?:\s+[A-Za-z]+){0,3}\s+\d+:\d+(?:\s*[-–—]\s*\d+)?)(?:\s*\(([^)\n]+)\))?/);
   return reference?.[1]?.trim() ?? "";
-}
-
-function requiredEnvironment(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`Missing environment variable: ${name}`);
-  return value;
-}
-
-async function saveMarkdown(id: string, date: string, markdown: string, mode: "create" | "update"): Promise<void> {
-  const owner = requiredEnvironment("GITHUB_OWNER");
-  const repository = requiredEnvironment("GITHUB_REPO");
-  const token = requiredEnvironment("GITHUB_TOKEN");
-  const branch = process.env.GITHUB_BRANCH?.trim() || process.env.VERCEL_GIT_COMMIT_REF?.trim() || "master";
-  const path = `content/readings/${id}.md`;
-  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/contents/${path}`;
-  const headers = {
-    accept: "application/vnd.github+json",
-    authorization: `Bearer ${token}`,
-    "x-github-api-version": "2022-11-28",
-    "content-type": "application/json",
-  };
-  const existing = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, { headers, cache: "no-store" });
-  let sha: string | undefined;
-  if (existing.ok) {
-    if (mode === "create") throw new Error("A reading with this ID already exists. Refresh the list and try again.");
-    const item = (await existing.json()) as { sha?: unknown };
-    if (typeof item.sha !== "string") throw new Error("GitHub did not return the current file version.");
-    sha = item.sha;
-  } else if (existing.status === 404 && mode === "update") {
-    throw new Error("This reading no longer exists in GitHub. Refresh the list and try again.");
-  } else if (existing.status !== 404) {
-    throw new Error(`GitHub could not check the reading (status ${existing.status}).`);
-  }
-
-  const saved = await fetch(url, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify({
-      message: `${mode === "create" ? "Add" : "Update"} reading for ${date}`,
-      content: Buffer.from(markdown, "utf8").toString("base64"),
-      branch,
-      ...(sha ? { sha } : {}),
-    }),
-  });
-  if (!saved.ok) {
-    const details = (await saved.json().catch(() => null)) as { message?: unknown } | null;
-    const reason = typeof details?.message === "string" ? ` ${details.message}` : "";
-    throw new Error(`GitHub could not save the reading (status ${saved.status}).${reason}`);
-  }
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -122,35 +60,30 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Choose a valid reading to update." }, { status: 400 });
   }
 
-  const keyVerseReference = stringValue(input.keyVerseReference) ||
-    (category === "sunday-school" ? memoryVerseReference(body) : "");
-  const attributes: Record<string, unknown> = {
-    date,
-    type: category,
-    topic: title,
-  };
-  const fields: Array<[string, unknown]> = [
-    ["scripture", category === "sunday-school" ? keyVerseReference : stringValue(input.scripture)],
-    ["keyVerse", stringValue(input.keyVerse)],
-    ["keyVerseReference", keyVerseReference],
-    ["translation", stringValue(input.translation)],
-    ["publication", stringValue(input.publication)],
-    ["annualTheme", stringValue(input.annualTheme)],
-    ["annualThemeReference", stringValue(input.annualThemeReference)],
-    ["unit", stringValue(input.unit)],
-    ["lessonNumber", stringValue(input.lessonNumber)],
-    ["centralTruth", stringValue(input.centralTruth)],
-    ["controllingThought", stringValue(input.controllingThought)],
-    ["prayer", stringValue(input.prayer)],
-    ["biblePlan", stringValue(input.biblePlan)],
-  ];
-  for (const [key, value] of fields) if (value) attributes[key] = value;
+  const keyVerseReference = stringValue(input.keyVerseReference) || (category === "sunday-school" ? memoryVerseReference(body) : "");
   const learningObjectives = stringValue(input.learningObjectives).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (learningObjectives.length) attributes.learningObjectives = learningObjectives;
+  const reading: Devotional = {
+    id, date, kind: category, title, topic: title, body, available: true,
+    scripture: category === "sunday-school" ? keyVerseReference : stringValue(input.scripture),
+    keyVerse: stringValue(input.keyVerse), keyVerseReference, translation: stringValue(input.translation),
+    publication: stringValue(input.publication), annualTheme: stringValue(input.annualTheme),
+    annualThemeReference: stringValue(input.annualThemeReference), unit: stringValue(input.unit),
+    lessonNumber: stringValue(input.lessonNumber), centralTruth: stringValue(input.centralTruth),
+    controllingThought: stringValue(input.controllingThought), prayer: stringValue(input.prayer),
+    biblePlan: stringValue(input.biblePlan), learningObjectives,
+  };
 
   try {
-    await saveMarkdown(id, date, matter.stringify(body, attributes), mode);
-    return NextResponse.json({ ok: true, id, date, title, mode, scripture: category === "sunday-school" ? keyVerseReference : stringValue(input.scripture) });
+    await saveReading(reading, mode);
+    let notified = 0;
+    if (mode === "create") {
+      try {
+        notified = await notifyNewReading({ id, date, topic: title });
+      } catch (notificationError) {
+        console.error("Reading saved, but push notification delivery failed", notificationError);
+      }
+    }
+    return NextResponse.json({ ok: true, id, date, title, mode, scripture: reading.scripture, notified });
   } catch (error) {
     const message = error instanceof Error ? error.message : "The reading could not be saved.";
     console.error("Admin reading publish failed", error);

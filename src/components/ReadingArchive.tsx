@@ -44,7 +44,7 @@ export function ReadingArchive({
   today: string;
 }) {
   const [selectedWeek, setSelectedWeek] = useState("all");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState<"daily" | "sunday-school">("daily");
   const weeks = useMemo(() => weekOptions(readings, today), [readings, today]);
   const visibleReadings = useMemo(
     () =>
@@ -53,7 +53,7 @@ export function ReadingArchive({
           (reading) =>
             selectedWeek === "all" || mondayOf(reading.date) === selectedWeek,
         )
-        .filter((reading) => selectedCategory === "all" || reading.kind === selectedCategory)
+        .filter((reading) => reading.kind === selectedCategory)
         .sort((a, b) => b.date.localeCompare(a.date)),
     [readings, selectedWeek, selectedCategory],
   );
@@ -92,17 +92,12 @@ export function ReadingArchive({
               ▾
             </span>
           </label>
-          <label className="week-filter category-filter">
-            <span aria-hidden="true">✦</span>
-            <span className="week-filter__label">{selectedCategory === "all" ? "All categories" : selectedCategory === "daily" ? "Daily Reading" : "Sunday School"}</span>
-            <select aria-label="Filter readings by category" value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)}>
-              <option value="all">All categories</option>
-              <option value="daily">Daily Reading</option>
-              <option value="sunday-school">Sunday School</option>
-            </select>
-            <span className="week-filter__chevron" aria-hidden="true">▾</span>
-          </label>
         </div>
+      </div>
+
+      <div className="archive-tabs" aria-label="Reading category">
+        <button type="button" aria-pressed={selectedCategory === "daily"} className={selectedCategory === "daily" ? "is-active" : ""} onClick={() => setSelectedCategory("daily")}>Daily Meal</button>
+        <button type="button" aria-pressed={selectedCategory === "sunday-school"} className={selectedCategory === "sunday-school" ? "is-active" : ""} onClick={() => setSelectedCategory("sunday-school")}>Sunday School</button>
       </div>
 
       {visibleReadings.length > 0 ? (
@@ -134,13 +129,13 @@ export function ReadingArchive({
           <p>
             {readings.length === 0
               ? "Published readings will appear here."
-              : "There are no readings matching these filters. Choose another week or category to see more."}
+              : `There are no ${selectedCategory === "daily" ? "Daily Meal" : "Sunday School"} readings for this week. Choose another week or category to see more.`}
           </p>
-          {(selectedWeek !== "all" || selectedCategory !== "all") && (
+          {selectedWeek !== "all" && (
             <button
               className="archive-empty__reset"
               type="button"
-              onClick={() => { setSelectedWeek("all"); setSelectedCategory("all"); }}
+              onClick={() => setSelectedWeek("all")}
             >
               Show all readings
             </button>

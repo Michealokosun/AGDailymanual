@@ -1,15 +1,15 @@
 # Evangel Daily Meal
 
-A responsive devotional and Sunday School reading app for Assemblies of God members. Readings are stored as dated Markdown files in GitHub and displayed on the public site. The private admin CMS provides a visual editor for creating and updating that content.
+A responsive devotional and Sunday School reading app for Assemblies of God members. Readings are stored in Postgres and loaded directly from the database. The private `/admin` CMS lets authorized editors create and update readings.
 
 ## Features
 
-- Home page with today's available reading, weekly archive, and week filter.
-- A detail page for each daily reading or Sunday School lesson.
-- Private `/admin` content studio with title, date, category, a rich text body editor, preview, and optional reading details.
-- One-click publishing to the repository's `content/readings/` folder.
-- Optional browser push alerts for newly added readings.
-- Responsive layout for phones, tablets, and desktop screens.
+- Home page highlighting today's reading and listing the reading archive.
+- Individual detail pages for every reading.
+- Archive filters for week and category.
+- Admin CMS with rich text editing, formatting, undo/redo, and preview.
+- Multiple readings per day, including multiple readings in the same category.
+- Optional browser push notifications for newly published readings.
 
 ## Run locally
 
@@ -20,123 +20,78 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). To run a production build locally:
+Open [http://localhost:3000](http://localhost:3000).
+
+## Database setup
+
+Create a Postgres database through Vercel Marketplace (Neon is supported), then set `DATABASE_URL` in Vercel and `.env.local`. The app creates the `readings` and `push_subscriptions` tables automatically when needed.
+
+If you already have Markdown readings under `content/readings/`, import them once by setting the same database connection in `.env.local` and running:
 
 ```bash
-npm run build
-npm run start
+npm run content:import
 ```
 
-## Admin CMS setup
+The importer skips readings already present. After import, the public site reads directly from Postgres. Markdown files remain as backup copies and are not automatically synchronized.
 
-The CMS is at `/admin`. It uses an admin password and a signed, HTTP-only session cookie. GitHub credentials are used only by the server when a reading is published.
+## Admin CMS
 
-1. Copy `.env.example` to `.env.local` for local use.
-2. Set `ADMIN_PASSWORD` to a strong, private password.
-3. Generate a separate random session secret and set it as `ADMIN_SESSION_SECRET`:
+Set `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` in `.env.local` and Vercel. Generate a session secret with:
 
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
-   ```
-
-4. Create a GitHub fine-grained personal access token restricted to this repository, with **Contents: Read and write** permission. Set `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, and `GITHUB_BRANCH`.
-5. Add those values to Vercel under **Project → Settings → Environment Variables**, then redeploy.
-6. Open `https://your-site.example/admin` and sign in with `ADMIN_PASSWORD`.
-
-Keep `.env.local`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, and `GITHUB_TOKEN` private. Do not add them to client-side variables or commit them to GitHub. The admin session expires after eight hours. Set the same admin and GitHub values in Vercel as in local development, using a strong production password.
-
-## Create or edit a reading
-
-1. Sign in at `/admin`.
-2. Choose **+** to create a reading or select one from the list to edit it.
-3. Enter the title, date, and category. Write the body in the visual editor. Use the toolbar for headings, bold, italic, lists, quotes, and links. Switch to **Preview** to see the rendered Markdown.
-4. Add optional details if needed. For Sunday School, enter the memory verse and its reference; the listing scripture is taken from that memory verse reference.
-5. Choose **Publish reading** or **Save changes**.
-
-The CMS converts rich text formatting to Markdown and saves each reading as its own file, such as `content/readings/2026-11-08--prayer-and-trust-a1b2c3d4.md`. You can publish multiple readings on the same date, including multiple readings in one category. Choose a reading from the list to edit that specific entry. Publishing commits the Markdown file to the configured GitHub branch. Vercel deploys the commit and the reading appears on the site after deployment succeeds.
-
-The form checks only the basics needed to create a reading file: a valid date, a category, a title, and body content. It does not require the devotional or lesson to follow a rigid section template. The production build separately confirms the dated filename and front matter are valid.
-
-## Reading files
-
-Each reading is a Markdown file in `content/readings/`. Name files `YYYY-MM-DD.md` for a single legacy reading or `YYYY-MM-DD--unique-name.md` when a date has multiple readings. The date in front matter must match the date prefix in the filename. The CMS writes front matter for the date, category, title, and optional fields, then stores the formatted body below it. `content/readings/TEMPLATE.md` is available as a reference. You can still add or edit Markdown files directly in GitHub; the site reads all valid reading files from this folder. The archive can be filtered by week and category.
-
-Example:
-
-```markdown
----
-date: "2026-11-08"
-type: "sunday-school"
-topic: "JESUS LIFTED UP"
-keyVerse: "As Moses lifted up the serpent in the wilderness."
-keyVerseReference: "John 3:14"
-scripture: "John 3:14"
----
-
-## Lesson Outline
-
-Write the lesson here with **bold**, *italic*, lists, quotes, and headings.
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 ```
 
-Sunday School archive cards always display `keyVerseReference` as their scripture. Daily reading cards display the `scripture` field.
+Open `/admin`, sign in, and enter the title, date, category, and body. Optional fields support devotional and Sunday School details. Publishing writes directly to the database; the homepage and reading pages can show the new content without a new deployment. Each reading has a unique ID, so several readings can share the same date.
+
+Keep `.env.local`, `ADMIN_PASSWORD`, and `ADMIN_SESSION_SECRET` private. Do not commit them or expose them in browser-side variables. Admin sessions expire after eight hours.
 
 ## Push notifications
 
-Readers can opt in to new-reading alerts from the prompt on the home page. Each browser or device has its own subscription. A new dated Markdown file committed to the production branch triggers the GitHub Actions workflow. Updates to existing files do not send another alert.
+Readers can opt into alerts from the prompt on the home page. Each browser or device has its own subscription. When a new reading is published, the app sends a push alert if push credentials are configured. Updating an existing reading does not send a new alert.
 
-1. Add a Postgres database through Vercel Marketplace (Neon is supported) and set `DATABASE_URL`. The app creates its subscriptions table automatically.
-2. Generate a VAPID key pair:
+1. Set `DATABASE_URL` so the app can store device subscriptions.
+2. Generate VAPID keys with `npm run push:keys`.
+3. Set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` in Vercel. Keep the private key secret.
+4. Set `APP_URL` to the deployed HTTPS site address.
 
-   ```bash
-   npm run push:keys
-   ```
-
-3. Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` to Vercel. Keep the private key secret. The app serves the public key to browsers through `/api/push/config`, so it does not need a `NEXT_PUBLIC_` prefix.
-4. Set `APP_URL` to the deployed HTTPS URL and configure a strong `PUSH_WEBHOOK_SECRET` in Vercel.
-5. In GitHub, open **Settings → Secrets and variables → Actions** and add `PUSH_NOTIFY_URL` (the deployed site URL) and `PUSH_WEBHOOK_SECRET` (the same secret configured in Vercel).
-6. The workflow watches `master` by default. If your production branch has another name, update `.github/workflows/notify-new-readings.yml`.
-
-On iPhone and iPad, users need to add the site to their Home Screen and open it from there before enabling push notifications. For delivery problems, check the GitHub Actions run and Vercel function logs.
+On iPhone and iPad, users need to add the site to their Home Screen and open it from there before enabling push notifications.
 
 ## Environment variables
 
 | Variable | Purpose |
 | --- | --- |
+| `DATABASE_URL` or `POSTGRES_URL` | Postgres connection for readings and push subscriptions |
 | `ADMIN_PASSWORD` | Password for the `/admin` CMS |
 | `ADMIN_SESSION_SECRET` | Signs admin session cookies |
-| `GITHUB_TOKEN` | Allows the server to create and update reading files |
-| `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH` | Repository destination for reading files |
 | `APP_URL` | Deployed HTTPS site URL used in push notification links |
-| `DATABASE_URL` | Postgres connection for push subscriptions |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Browser push notification configuration |
-| `PUSH_WEBHOOK_SECRET` | Protects the endpoint called by GitHub Actions |
 
 ## Useful commands
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start the local development server |
-| `npm run build` | Validate reading files and build for production |
-| `npm run start` | Run the production build locally |
+| `npm run dev` | Start the development server |
+| `npm run build` | Validate legacy Markdown and build for production |
+| `npm run start` | Run a production build locally |
 | `npm run lint` | Run ESLint |
-| `npm run content:check` | Validate dated Markdown reading files |
-| `npm run push:keys` | Generate a VAPID key pair |
+| `npm run content:check` | Validate legacy Markdown readings |
+| `npm run content:import` | Import legacy Markdown readings to Postgres |
+| `npm run push:keys` | Generate VAPID keys |
 
 ## Project structure
 
 ```text
-content/readings/       Dated Markdown reading files
-public/                 Logo, icons, and service worker
-scripts/                Content and push setup utilities
-src/app/admin/           Admin CMS page
-src/app/api/admin/       Protected admin sign-in and publishing routes
-src/app/reading/         Reading detail page
-src/components/          Shared UI and admin editor components
-src/data/                Reading file loading and parsing
-src/lib/                 Date, admin-session, and push utilities
-.github/workflows/       New-reading notification workflow
+content/readings/       Legacy Markdown files for import and backup
+scripts/                Content import and validation utilities
+src/app/admin/          Admin CMS page
+src/app/api/admin/      Protected admin routes
+src/app/reading/        Reading detail page
+src/components/         Shared UI and admin editor
+src/data/               Database-backed reading data functions
+src/lib/                Database, date, session, and push utilities
 ```
 
 ## Branding
 
-The app uses the Assemblies of God logo at `public/ag-logo.png`. Replace it to update the splash screen and navigation. The primary accent is `#FDCA40`, paired with navy and warm cream.
+The Assemblies of God logo is at `public/ag-logo.png`. The primary accent is `#FDCA40`, paired with navy and warm cream.
