@@ -11,7 +11,11 @@ export default async function HomePage() {
   const allReadings = await getAllReadings();
   const todayReadings = allReadings.filter((reading) => reading.date === today);
   const isSunday = new Date(`${today}T12:00:00Z`).getUTCDay() === 0;
-  const todayReading = todayReadings.find((reading) => reading.kind === (isSunday ? "sunday-school" : "daily")) ?? todayReadings[0] ?? await getReading(today);
+  const todayReading = isSunday
+    ? todayReadings.find((reading) => reading.kind === "sunday-school") ?? {
+      id: today, date: today, kind: "sunday-school" as const, title: "Sunday School", available: false,
+    }
+    : todayReadings.find((reading) => reading.kind === "daily") ?? await getReading(today);
   const todayDay = days.find((day) => day.date === today)!;
 
   return (
@@ -55,16 +59,17 @@ export default async function HomePage() {
           </div>
           {todayReading.available ? (
             <>
-              <p className="today-banner__theme">
-                {todayReading.annualTheme}{" "}
-                <span>· {todayReading.annualThemeReference}</span>
-              </p>
+              {todayReading.kind === "sunday-school" ? (
+                <p className="today-banner__theme">{todayReading.unit}{todayReading.lessonNumber ? <span> · Lesson {todayReading.lessonNumber}</span> : null}</p>
+              ) : (
+                <p className="today-banner__theme">{todayReading.annualTheme}{todayReading.annualThemeReference ? <span> · {todayReading.annualThemeReference}</span> : null}</p>
+              )}
               <h2 id="today-heading">{todayReading.topic}</h2>
               <p className="today-banner__scripture">
                 {todayReading.scripture}
               </p>
               <Link className="button button--gold" href={`/reading/${todayReading.id}`}>
-                Read today’s devotional <span aria-hidden="true">→</span>
+                {todayReading.kind === "sunday-school" ? "Read Sunday School lesson" : "Read today’s devotional"} <span aria-hidden="true">→</span>
               </Link>
             </>
           ) : (
@@ -72,12 +77,12 @@ export default async function HomePage() {
               <p className="today-banner__theme">
                 Make room for a moment in the Word
               </p>
-              <h2 id="today-heading">Today’s devotional is coming soon</h2>
+              <h2 id="today-heading">{isSunday ? "Sunday School lesson is coming soon" : "Today’s devotional is coming soon"}</h2>
               <p className="today-banner__scripture">
-                We’ll add the reading here as soon as it’s available.
+                {isSunday ? "The Sunday School lesson will appear here as soon as it’s available." : "We’ll add the reading here as soon as it’s available."}
               </p>
-              <Link className="button button--gold" href={`/reading/${today}`}>
-                View today’s page <span aria-hidden="true">→</span>
+              <Link className="button button--gold" href="#this-week">
+                {isSunday ? "Browse Sunday School readings" : "View this week’s readings"} <span aria-hidden="true">→</span>
               </Link>
             </>
           )}
