@@ -11,6 +11,12 @@ A responsive devotional and Sunday School reading app for Assemblies of God memb
 - Multiple readings per day, including multiple readings in the same category.
 - Optional browser push notifications for newly published readings.
 
+## Google Search visibility
+
+The site provides descriptive page titles, reading-specific summaries and canonical URLs, structured data, crawler rules, and a database-backed sitemap at `/sitemap.xml`. Keep `APP_URL` set to the production domain, `https://ag-dailymanual.vercel.app`, in Vercel so canonical links and sitemap entries use the right host.
+
+To submit the site to Google, verify the domain in Google Search Console, submit `https://ag-dailymanual.vercel.app/sitemap.xml`, then inspect the homepage and request indexing. Repeat inspection for important reading pages after publishing. Search indexing and ranking are decided by Google and can take time; the site code cannot guarantee a position.
+
 ## Run locally
 
 Requirements: Node.js 20.9 or newer and npm.

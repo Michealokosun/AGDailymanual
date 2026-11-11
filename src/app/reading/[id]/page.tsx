@@ -2,9 +2,60 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getReading } from "@/data/readings";
 import { dateLabel, weekdayLabel } from "@/lib/dates";
+import { siteName, siteUrl } from "@/lib/site";
 import ReactMarkdown from "react-markdown";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+function readingDescription(body: string, scripture?: string): string {
+  const plainText = body
+    .replace(/!?(\[([^\]]*)\])\([^)]*\)/g, "$2")
+    .replace(/[`*_>#~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const excerpt = plainText.length > 155 ? `${plainText.slice(0, 152).trimEnd()}…` : plainText;
+  return [scripture ? `Bible reading: ${scripture}.` : "", excerpt].filter(Boolean).join(" ").slice(0, 200);
+}
+
+function jsonLd(value: Record<string, unknown>): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  if (!/^\d{4}-\d{2}-\d{2}(?:--[a-z0-9-]+)?$/.test(id)) {
+    return { title: `Reading not found | ${siteName}`, robots: { index: false, follow: false } };
+  }
+  const reading = await getReading(id);
+  if (!reading.available) {
+    return { title: `Reading not found | ${siteName}`, robots: { index: false, follow: false } };
+  }
+
+  const category = reading.kind === "sunday-school" ? "Sunday School lesson" : "Daily Bible devotional";
+  const title = `${reading.topic ?? reading.title} — ${category}`;
+  const description = readingDescription(reading.body ?? "", reading.scripture);
+  const url = `/reading/${reading.id}`;
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      siteName,
+      title,
+      description,
+      url,
+      publishedTime: `${reading.date}T00:00:00.000Z`,
+      images: [{ url: "/ag-logo.png", width: 430, height: 403, alt: "Assemblies of God logo" }],
+    },
+    twitter: { card: "summary", title, description, images: ["/ag-logo.png"] },
+  };
+}
 
 export default async function ReadingPage({
   params,
@@ -27,6 +78,23 @@ export default async function ReadingPage({
 
   return (
     <article className="detail-page">
+      {reading.available ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: jsonLd({
+              "@context": "https://schema.org",
+              "@type": "Article",
+              headline: reading.topic ?? reading.title,
+              description: readingDescription(reading.body ?? "", reading.scripture),
+              datePublished: reading.date,
+              inLanguage: "en",
+              mainEntityOfPage: `${siteUrl}/reading/${reading.id}`,
+              publisher: { "@type": "Organization", name: siteName, logo: { "@type": "ImageObject", url: `${siteUrl}/ag-logo.png` } },
+            }),
+          }}
+        />
+      ) : null}
       <Link href="/#this-week" className="back-link">
         <span aria-hidden="true">←</span> Back to this week
       </Link>

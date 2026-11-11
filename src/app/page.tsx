@@ -2,8 +2,20 @@ import Link from "next/link";
 import { ReadingArchive } from "@/components/ReadingArchive";
 import { getAllReadings, getReading } from "@/data/readings";
 import { currentWeek, dateLabel, lagosToday } from "@/lib/dates";
+import { siteDescription, siteName, siteUrl } from "@/lib/site";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Daily Bible Readings and Sunday School Lessons",
+  description: siteDescription,
+  alternates: { canonical: "/" },
+};
+
+function jsonLd(value: Record<string, unknown>): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}
 
 export default async function HomePage() {
   const today = lagosToday();
@@ -20,14 +32,28 @@ export default async function HomePage() {
 
   return (
     <div className="home-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: siteName,
+            url: siteUrl,
+            description: siteDescription,
+            inLanguage: "en",
+            publisher: { "@type": "Organization", name: "Assemblies of God", logo: `${siteUrl}/ag-logo.png` },
+          }),
+        }}
+      />
       <section className="welcome-row">
         <div>
           <p className="overline">YOUR WEEK IN THE WORD</p>
           <h1>
-            Good day. <span>Grow in the Word.</span>
+            Daily Bible Readings. <span>Grow in the Word.</span>
           </h1>
           <p className="welcome-copy">
-            A moment with Scripture can shape the whole day.
+            Read daily devotionals, Sunday School lessons, and past readings from Evangel Daily Meal.
           </p>
         </div>
         <div className="week-date">
