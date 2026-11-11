@@ -3,6 +3,7 @@ import { AdminLogin } from "@/components/AdminLogin";
 import { AdminStudio } from "@/components/AdminStudio";
 import { getAllReadings } from "@/data/readings";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
+import { lagosToday } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -14,5 +15,5 @@ export default async function AdminPage() {
   const authenticated = await isAdminAuthenticated();
   if (!authenticated) return <AdminLogin />;
   const readings = await getAllReadings();
-  return <AdminStudio initialReadings={readings} />;
+  return <AdminStudio initialReadings={readings} initialDate={lagosToday()} />;
 }
